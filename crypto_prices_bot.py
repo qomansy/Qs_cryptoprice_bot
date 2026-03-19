@@ -28,7 +28,9 @@ paper_trade = {
 
 
 def get_prices():
-    url = "https://api.binance.com/api/v3/ticker/24hr"
+    symbols = ",".join([f'"{s}"' for s in SYMBOLS])
+    url = f"https://api.mexc.com/api/v3/ticker/24hr?symbols=[{symbols}]"
+
     response = requests.get(url, timeout=10)
     response.raise_for_status()
     raw_data = response.json()
