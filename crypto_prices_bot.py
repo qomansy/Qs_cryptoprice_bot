@@ -14,10 +14,12 @@ last_alerts = {}
 
 def get_prices():
     url = "https://api.binance.com/api/v3/ticker/24hr"
-    response = requests.get(url, timeout=10).json()
-    data = {}
+    response = requests.get(url, timeout=10)
+    response.raise_for_status()
+    raw_data = response.json()
 
-    for coin in response:
+    data = {}
+    for coin in raw_data:
         if coin["symbol"] in SYMBOLS:
             data[coin["symbol"]] = {
                 "price": float(coin["lastPrice"]),
@@ -41,13 +43,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/stop"
     )
 
-    # Удаляем старые задачи для этого чата, чтобы не было дублей
-    old_price_jobs = context.job_queue.get_jobs_by_name(f"{chat_id}_prices")
-    for job in old_price_jobs:
+    # Удаляем старые задачи, чтобы не было дублей
+    for job in context.job_queue.get_jobs_by_name(f"{chat_id}_prices"):
         job.schedule_removal()
 
-    old_alert_jobs = context.job_queue.get_jobs_by_name(f"{chat_id}_alerts")
-    for job in old_alert_jobs:
+    for job in context.job_queue.get_jobs_by_name(f"{chat_id}_alerts"):
         job.schedule_removal()
 
     # Цены каждые 10 минут
@@ -77,6 +77,7 @@ async def now(update: Update, context: ContextTypes.DEFAULT_TYPE):
         price = data["price"]
         change = data["change"]
         emoji = "🟢" if change >= 0 else "🔴"
+
         message += f"{symbol}: ${price:.4f} ({emoji} {change:.2f}%)\n"
 
     await update.message.reply_text(message)
@@ -92,6 +93,7 @@ async def send_prices(context: ContextTypes.DEFAULT_TYPE):
         price = data["price"]
         change = data["change"]
         emoji = "🟢" if change >= 0 else "🔴"
+
         message += f"{symbol}: ${price:.4f} ({emoji} {change:.2f}%)\n"
 
     await context.bot.send_message(chat_id=chat_id, text=message)
@@ -113,7 +115,7 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE):
             if abs(diff) >= ALERT_THRESHOLD:
                 last_alert = last_alerts.get(symbol, 0)
 
-                # антиспам: не шлём почти одинаковый сигнал повторно
+                # антиспам: не шлём почти одинаковый сигнал подряд
                 if abs(diff - last_alert) >= 0.5:
                     alert_text = "🚀 растёт" if diff > 0 else "🔻 падает"
 
@@ -130,12 +132,10 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE):
 async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
 
-    price_jobs = context.job_queue.get_jobs_by_name(f"{chat_id}_prices")
-    for job in price_jobs:
+    for job in context.job_queue.get_jobs_by_name(f"{chat_id}_prices"):
         job.schedule_removal()
 
-    alert_jobs = context.job_queue.get_jobs_by_name(f"{chat_id}_alerts")
-    for job in alert_jobs:
+    for job in context.job_queue.get_jobs_by_name(f"{chat_id}_alerts"):
         job.schedule_removal()
 
     await update.message.reply_text("Остановлено ❌")
