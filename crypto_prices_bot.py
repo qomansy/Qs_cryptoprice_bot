@@ -9,6 +9,7 @@ SYMBOLS = ["ETHUSDT", "BTCUSDT", "TONUSDT", "APTUSDT", "DOTUSDT"]
 ALERT_THRESHOLD = 2.5
 
 last_prices = {}
+last_alerts = {}
 
 def get_prices():
     url = "https://api.binance.com/api/v3/ticker/24hr"
