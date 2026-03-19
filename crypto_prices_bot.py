@@ -36,6 +36,34 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def now(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await send_prices(context)
+    async def check_alerts(context: ContextTypes.DEFAULT_TYPE):
+    global last_prices, last_alerts
+    chat_id = context.job.chat_id
+
+    prices = get_prices()
+
+    for symbol, data in prices.items():
+        price = data["price"]
+
+        if symbol in last_prices:
+            old_price = last_prices[symbol]
+            diff = ((price - old_price) / old_price) * 100
+
+            if abs(diff) >= 2.0:
+                last_alert = last_alerts.get(symbol, 0)
+
+                # антиспам
+                if abs(diff - last_alert) >= 0.5:
+                    alert = "🚀 растёт" if diff > 0 else "🔻 падает"
+
+                    await context.bot.send_message(
+                        chat_id=chat_id,
+                        text=f"⚠️ {symbol} {alert} на {diff:.2f}%"
+                    )
+
+                    last_alerts[symbol] = diff
+
+    last_prices = {s: d["price"] for s, d in prices.items()}
 
 async def send_prices(context: ContextTypes.DEFAULT_TYPE):
     global last_prices
